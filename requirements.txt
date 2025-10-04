@@ -1,0 +1,11 @@
+iqoptionapi
+pandas
+numpy
+python-dotenv
+pyinstaller
+ta
+iqoptionapi
+numpy
+pandas
+pyinstaller
+python-dotenv
