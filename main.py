@@ -1,10 +1,9 @@
-# main.py - orchestrator: scans OTC assets and triggers sequences when a strategy signals
 import os
 import time
 import signal
 from dotenv import load_dotenv
 from connector import IQConnector
-from strategy import Strategies
+from strategy import AdvancedStrategy
 from manager import TradeManager
 import pandas as pd
 
@@ -12,24 +11,24 @@ load_dotenv()
 
 EMAIL = os.getenv('IQ_EMAIL')
 PASSWORD = os.getenv('IQ_PASSWORD')
-MODE = os.getenv('MODE','PRACTICE')
-ASSETS_ENV = os.getenv('ASSETS','')
-RISK = float(os.getenv('RISK_PER_TRADE', 0.01))
-TIMEFRAME = int(os.getenv('TIMEFRAME_SEC', 60))
-CANDLES = int(os.getenv('CANDLES', 120))
-MAX_TRADES_PER_MIN = int(os.getenv('MAX_TRADES_PER_MIN', 3))
-MAX_LOSSES_IN_ROW = int(os.getenv('MAX_LOSSES_IN_ROW', 5))
-COOLDOWN_AFTER_LOSS_SEC = int(os.getenv('COOLDOWN_AFTER_LOSS_SEC', 60))
-MIN_STAKE = float(os.getenv('MIN_STAKE', 1.0))
-RECOVERY_MULTIPLIER = float(os.getenv('RECOVERY_MULTIPLIER', 2.0))
-MAX_RECOVERY_STEPS = int(os.getenv('MAX_RECOVERY_STEPS', 3))
-MAX_SEQUENTIAL_TRADES = int(os.getenv('MAX_SEQUENTIAL_TRADES', 10))
+TRADE_MODE = os.getenv('TRADE_MODE', 'PRACTICE')
+BASE_AMOUNT = float(os.getenv('BASE_AMOUNT', 1))
+MARTINGALE_MULTIPLIER = float(os.getenv('MARTINGALE_MULTIPLIER', 2.2))
+TAKE_PROFIT = float(os.getenv('TAKE_PROFIT', 50))
+START_BALANCE = float(os.getenv('START_BALANCE', 24.65))
+MAX_LOSSES = int(os.getenv('MAX_LOSSES', 5))
+TIMEFRAME = os.getenv('TIMEFRAME', '1m')
+ASSETS_ENV = os.getenv('ASSETS', '')
+
+TIMEFRAME_SEC = 60 if TIMEFRAME == '1m' else int(TIMEFRAME)
+CANDLES_COUNT = 120
 
 running = True
 
 def signal_handler(sig, frame):
     global running
     running = False
+    print('\n⚠️ Shutdown signal received, stopping bot...')
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -37,78 +36,170 @@ def df_from_candles(candles):
     if not candles:
         return pd.DataFrame()
     df = pd.DataFrame(candles)
-    for col in ['ts','open','high','low','close','volume']:
+    for col in ['ts', 'open', 'high', 'low', 'close', 'volume']:
         if col not in df.columns:
             df[col] = None
-    return df[['ts','open','high','low','close','volume']]
+    return df[['ts', 'open', 'high', 'low', 'close', 'volume']]
+
+def reconnect(email, password, mode, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            print(f"🔄 Reconnection attempt {attempt + 1}/{max_retries}...")
+            conn = IQConnector(email, password, mode)
+            conn.connect()
+            print(f"✅ Reconnected successfully")
+            return conn
+        except Exception as e:
+            print(f"❌ Reconnection failed: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(5)
+    return None
 
 def main():
+    global running
+    
     if not EMAIL or not PASSWORD:
-        print('ERROR: configure IQ_EMAIL and IQ_PASSWORD as environment variables (.env)')
+        print('❌ ERROR: Please configure IQ_EMAIL and IQ_PASSWORD in Replit Secrets')
         return
-    conn = IQConnector(EMAIL, PASSWORD, MODE)
-    print('Connecting...')
+    
+    print("=" * 70)
+    print("🤖 IQ OPTION ADVANCED TRADING BOT - STARTING")
+    print("=" * 70)
+    print(f"📊 Configuration:")
+    print(f"   Mode: {TRADE_MODE}")
+    print(f"   Base Amount: ${BASE_AMOUNT}")
+    print(f"   Martingale Multiplier: {MARTINGALE_MULTIPLIER}x")
+    print(f"   Take Profit Target: ${TAKE_PROFIT}")
+    print(f"   Max Consecutive Losses: {MAX_LOSSES}")
+    print(f"   Timeframe: {TIMEFRAME}")
+    print("=" * 70)
+    
+    conn = IQConnector(EMAIL, PASSWORD, TRADE_MODE)
+    print('\n🔌 Connecting to IQ Option...')
+    
     try:
         conn.connect()
+        print('✅ Connected successfully!')
     except Exception as e:
-        print('Failed to connect:', e)
+        print(f'❌ Failed to connect: {e}')
         return
-
+    
+    try:
+        balance = conn.Iq.get_balance()
+        print(f'💰 Current Balance: ${balance:.2f}')
+    except:
+        balance = START_BALANCE
+        print(f'💰 Starting Balance: ${balance:.2f}')
+    
     otc_assets = conn.get_all_assets()
+    
     if not otc_assets:
         if ASSETS_ENV:
             otc_assets = [a.strip() for a in ASSETS_ENV.split(',') if a.strip()]
         else:
-            print('No OTC assets detected and ASSETS env is empty. Exiting.')
-            return
-
-    print('OTC assets to monitor:', otc_assets)
-
-    tm = TradeManager(conn, risk_per_trade=RISK, min_stake=MIN_STAKE, recovery_multiplier=RECOVERY_MULTIPLIER, max_recovery_steps=MAX_RECOVERY_STEPS, max_sequential_trades=MAX_SEQUENTIAL_TRADES)
-
-    losses_in_row = 0
-    last_loss_ts = None
-    trades_last_min = []
-
-    print('Starting main loop...')
-    global running
+            otc_assets = ['EURUSD-OTC', 'GBPUSD-OTC', 'USDJPY-OTC', 'AUDUSD-OTC', 'EURJPY-OTC']
+    
+    print(f'\n📈 Monitoring {len(otc_assets)} OTC assets:')
+    print(f'   {", ".join(otc_assets[:10])}')
+    if len(otc_assets) > 10:
+        print(f'   ... and {len(otc_assets) - 10} more')
+    
+    strategy = AdvancedStrategy()
+    manager = TradeManager(
+        conn,
+        base_amount=BASE_AMOUNT,
+        martingale_multiplier=MARTINGALE_MULTIPLIER,
+        take_profit=TAKE_PROFIT,
+        start_balance=START_BALANCE,
+        max_losses=MAX_LOSSES
+    )
+    
+    print('\n🚀 Starting main trading loop...\n')
+    print('🔍 The bot will now scan for patterns and execute trades automatically')
+    print('   Press Ctrl+C to stop\n')
+    
+    last_reconnect = time.time()
+    scan_interval = 5
+    
     while running:
         loop_start = time.time()
-        # rate limit list per minute
-        trades_this_cycle = 0
+        
+        should_stop, reason = manager.should_stop_trading()
+        if should_stop:
+            print(f'\n🛑 STOPPING: {reason}')
+            stats = manager.get_stats()
+            print(f"\n📊 Final Statistics:")
+            print(f"   Total Trades: {stats['trade_count']}")
+            print(f"   Total Profit: ${stats['total_profit']:.2f}")
+            print(f"   Final Amount: ${stats['current_amount']:.2f}")
+            break
+        
+        if time.time() - last_reconnect > 300:
+            try:
+                if not conn.Iq or not hasattr(conn.Iq, 'check_connect') or not conn.Iq.check_connect():
+                    print('\n⚠️ Connection lost, attempting to reconnect...')
+                    conn = reconnect(EMAIL, PASSWORD, TRADE_MODE)
+                    if not conn:
+                        print('❌ Could not reconnect, stopping bot')
+                        break
+                    last_reconnect = time.time()
+            except:
+                pass
+        
         for asset in otc_assets:
-            # refresh trade timestamps
-            trades_last_min = [t for t in trades_last_min if t > time.time() - 60]
-            if len(trades_last_min) >= MAX_TRADES_PER_MIN:
+            if not running:
                 break
-            if losses_in_row >= MAX_LOSSES_IN_ROW:
-                print('Max losses in a row reached. Pausing trading.')
-                running = False
-                break
-            if last_loss_ts and (time.time() - last_loss_ts) < COOLDOWN_AFTER_LOSS_SEC:
+            
+            try:
+                candles = conn.get_candles(asset, timeframe_seconds=TIMEFRAME_SEC, count=CANDLES_COUNT)
+                df = df_from_candles(candles)
+                
+                if df.empty or len(df) < 30:
+                    time.sleep(0.3)
+                    continue
+                
+                signal, analysis = strategy.analyze(df, asset=asset)
+                
+                if signal in ('call', 'put'):
+                    print(f'\n🎯 SIGNAL DETECTED: {signal.upper()} on {asset}')
+                    
+                    try:
+                        balance = conn.Iq.get_balance()
+                    except:
+                        balance = START_BALANCE + manager.total_profit
+                    
+                    result = manager.execute_trade(asset, signal, balance, analysis)
+                    
+                    if result:
+                        pattern_closes = df['close'].tail(20).tolist()
+                        strategy.update_pattern_result(asset, pattern_closes, signal)
+                    
+                    should_stop, reason = manager.should_stop_trading()
+                    if should_stop:
+                        print(f'\n🛑 STOPPING: {reason}')
+                        break
+                    
+                    time.sleep(2)
+            
+            except Exception as e:
+                print(f'⚠️ Error processing {asset}: {e}')
+                time.sleep(0.5)
                 continue
-            candles = conn.get_candles(asset, timeframe_seconds=TIMEFRAME, count=CANDLES)
-            df = df_from_candles(candles)
-            if df.empty or len(df) < 30:
-                time.sleep(0.3)
-                continue
-            signal = Strategies.simple_otc_1m(df)
-            if signal in ('call','put'):
-                try:
-                    balance = conn.Iq.get_balance()
-                except Exception:
-                    balance = 1000.0
-                print(f"Signal {signal} on {asset} - balance approx {balance}")
-                # run sequential trades for this asset/direction
-                tm.run_sequential(asset, signal, balance, RISK)
-                trades_last_min.append(time.time())
-                trades_this_cycle += 1
-                # After sequence, you could update losses_in_row by reading the last lines of logfile - omitted here
-            time.sleep(0.5)
+        
         elapsed = time.time() - loop_start
-        if elapsed < 5:
-            time.sleep(5 - elapsed)
-    print('Bot stopped.')
+        if elapsed < scan_interval:
+            time.sleep(scan_interval - elapsed)
+    
+    stats = manager.get_stats()
+    print("\n" + "=" * 70)
+    print("🏁 BOT STOPPED")
+    print("=" * 70)
+    print(f"📊 Session Statistics:")
+    print(f"   Total Trades: {stats['trade_count']}")
+    print(f"   Total Profit/Loss: ${stats['total_profit']:.2f}")
+    print(f"   Consecutive Losses: {stats['consecutive_losses']}")
+    print(f"   Current Trade Amount: ${stats['current_amount']:.2f}")
+    print("=" * 70)
 
 if __name__ == '__main__':
     main()
