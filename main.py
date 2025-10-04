@@ -90,6 +90,7 @@ def main():
             candles = conn.get_candles(asset, timeframe_seconds=TIMEFRAME, count=CANDLES)
             df = df_from_candles(candles)
             if df.empty or len(df) < 30:
+                time.sleep(0.3)
                 continue
             signal = Strategies.simple_otc_1m(df)
             if signal in ('call','put'):

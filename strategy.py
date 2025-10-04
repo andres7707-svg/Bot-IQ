@@ -21,7 +21,7 @@ class Strategies:
         ema5 = close.ewm(span=5, adjust=False).mean()
         ema13 = close.ewm(span=13, adjust=False).mean()
         rsi7 = rsi_simple(close, window=7)
-        vol_avg5 = vol.rolling(5).mean().fillna(method='bfill')
+        vol_avg5 = vol.rolling(5).mean().bfill()
         vol_spike = vol.iloc[-1] > 1.5 * vol_avg5.iloc[-1]
         last = s.iloc[-1]
         bullish = (ema5.iloc[-1] > ema13.iloc[-1]) and (ema5.iloc[-2] <= ema13.iloc[-2])

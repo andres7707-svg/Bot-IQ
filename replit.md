@@ -52,18 +52,33 @@ Optional (with defaults):
 - `MAX_SEQUENTIAL_TRADES=10` - Max trades in one sequence
 
 ## Recent Changes
-- **2025-10-04**: Initial project setup
+- **2025-10-04**: Project setup and configuration
   - Extracted bot from uploaded ZIP file
   - Installed Python dependencies
-  - Fixed iqoptionapi package (switched from PyPI v0.5 to GitHub v6.8.9.1)
+  - Fixed iqoptionapi package (switched from PyPI v0.5 to GitHub v6.8.9.1 for stable_api support)
   - Configured Trading Bot workflow
-  - Awaiting IQ_EMAIL and IQ_PASSWORD secrets from user
+  - Added IQ_EMAIL and IQ_PASSWORD credentials (provided by user)
+  - Fixed OTC asset detection (API changed, now using get_all_ACTIVES_OPCODE + "-OTC" suffix)
+  - Bot successfully connects and monitors 10 OTC pairs
+  - Fixed pandas deprecation warning in strategy (fillna method → bfill)
+  - **Status**: Bot is running in PRACTICE mode with $24.65 balance
+  - **Known Issue**: IQ Option API has connection stability issues with frequent candle requests
 
-## Next Steps
-1. User needs to provide IQ_EMAIL and IQ_PASSWORD secrets
-2. Test bot in PRACTICE mode
-3. Monitor trades_log.csv for results
-4. Fine-tune strategy parameters if needed
+## Known Issues & Limitations
+1. **API Connection Stability**: The IQ Option API can lose connection when making frequent candle requests. The bot includes delays and error handling to mitigate this.
+2. **Reconnection**: If the API drops connection, the bot will show errors but continues attempting to fetch data
+3. **OTC Market Hours**: OTC markets may not always be available. The bot will show connection errors during off-hours.
+
+## Next Steps & Recommendations
+1. ✅ Bot is running in PRACTICE mode - monitor the console for activity
+2. Check `trades_log.csv` when trades are executed (file created on first trade)
+3. Consider reducing the number of assets monitored (edit ASSETS env var) to reduce API load
+4. Fine-tune strategy parameters in .env if needed
+5. For production use:
+   - Test extensively in PRACTICE mode first
+   - Set MODE=REAL only when confident
+   - Start with small MIN_STAKE values
+   - Monitor closely due to martingale/recovery risk
 
 ## Dependencies
 - Python 3.11

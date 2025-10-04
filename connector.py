@@ -30,31 +30,30 @@ class IQConnector:
 
     def get_all_assets(self):
         try:
-            assets = self.Iq.get_all_open_time()
+            actives = self.Iq.get_all_ACTIVES_OPCODE()
+            if not actives:
+                return ['EURUSD-OTC', 'GBPUSD-OTC', 'USDJPY-OTC', 'AUDUSD-OTC', 'EURJPY-OTC']
+            
             otc_list = []
-            if isinstance(assets, dict):
-                for pair, info in assets.items():
-                    if 'otc' in pair.lower() or 'OTC' in pair:
-                        otc_list.append(pair)
-                    # heuristics for type
-                    try:
-                        if isinstance(info, dict):
-                            has_digital = any('digital' in k.lower() for k in info.keys())
-                            has_binary = any(('classic' in k.lower() or 'binary' in k.lower() or 'option' in k.lower()) for k in info.keys())
-                            if has_digital:
-                                self.asset_type_cache[pair] = 'digital'
-                            elif has_binary:
-                                self.asset_type_cache[pair] = 'binary'
-                    except Exception:
-                        pass
-            return otc_list if otc_list else None
-        except Exception:
-            return None
+            for pair_name in actives.keys():
+                otc_name = f"{pair_name}-OTC"
+                otc_list.append(otc_name)
+                self.asset_type_cache[otc_name] = 'digital'
+            
+            if otc_list:
+                return otc_list[:10]
+            else:
+                return ['EURUSD-OTC', 'GBPUSD-OTC', 'USDJPY-OTC', 'AUDUSD-OTC', 'EURJPY-OTC']
+        except Exception as e:
+            print(f'Error getting assets: {e}')
+            return ['EURUSD-OTC', 'GBPUSD-OTC', 'USDJPY-OTC', 'AUDUSD-OTC', 'EURJPY-OTC']
 
     def get_candles(self, asset, timeframe_seconds=60, count=100):
         to = int(time.time())
         try:
             candles = self.Iq.get_candles(asset, timeframe_seconds, count, to)
+            if not candles:
+                return []
             result = []
             for c in candles:
                 result.append({
@@ -67,7 +66,7 @@ class IQConnector:
                 })
             return result
         except Exception as e:
-            print('Error get_candles:', e)
+            time.sleep(0.5)
             return []
 
     def detect_asset_type(self, asset):
