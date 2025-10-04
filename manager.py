@@ -90,11 +90,13 @@ class TradeManager:
             print(f"      MACD Histogram: {analysis.get('macd_hist', 0):.4f}")
             print(f"      Confidence: {analysis.get('confidence', 0)*100:.1f}%")
         
-        response = self.conn.buy_asset(asset, self.current_amount, direction, expiration_minutes=1)
+        traded_amount = self.current_amount
+        
+        response = self.conn.buy_asset(asset, traded_amount, direction, expiration_minutes=1)
         
         if not response:
             print(f"   ❌ Trade execution failed")
-            self._log(timestamp, asset, direction, self.current_amount, 'error', 
+            self._log(timestamp, asset, direction, traded_amount, 'error', 
                      balance, self.total_profit, self.consecutive_losses, 'execution_failed')
             return None
         
@@ -104,36 +106,34 @@ class TradeManager:
         result_status = self.conn.check_trade_result(response)
         
         if result_status == 'win':
-            payout = self.current_amount * 0.80
+            payout = traded_amount * 0.80
             self.total_profit += payout
             self.consecutive_losses = 0
             self.current_amount = self.base_amount
             
             print(f"   ✅ WIN! Profit: ${payout:.2f} | Total: ${self.total_profit:.2f}")
             
-            self._log(timestamp, asset, direction, self.current_amount, 'win', 
+            self._log(timestamp, asset, direction, traded_amount, 'win', 
                      balance, self.total_profit, 0, str(response))
         
         elif result_status == 'loss':
-            self.total_profit -= self.current_amount
+            self.total_profit -= traded_amount
             self.consecutive_losses += 1
-            next_amount = self.current_amount * self.martingale_multiplier
+            self.current_amount = round(traded_amount * self.martingale_multiplier, 2)
             
-            print(f"   ❌ LOSS! -${self.current_amount:.2f} | Total: ${self.total_profit:.2f}")
-            print(f"   📈 Next amount: ${next_amount:.2f} (Step {self.consecutive_losses})")
+            print(f"   ❌ LOSS! -${traded_amount:.2f} | Total: ${self.total_profit:.2f}")
+            print(f"   📈 Next amount: ${self.current_amount:.2f} (Step {self.consecutive_losses})")
             
-            self._log(timestamp, asset, direction, self.current_amount, 'loss', 
+            self._log(timestamp, asset, direction, traded_amount, 'loss', 
                      balance, self.total_profit, self.consecutive_losses, str(response))
-            
-            self.current_amount = round(next_amount, 2)
         
         else:
             print(f"   ⚠️ Unknown result, treating as loss for safety")
-            self.total_profit -= self.current_amount
+            self.total_profit -= traded_amount
             self.consecutive_losses += 1
-            self.current_amount = round(self.current_amount * self.martingale_multiplier, 2)
+            self.current_amount = round(traded_amount * self.martingale_multiplier, 2)
             
-            self._log(timestamp, asset, direction, self.current_amount, 'unknown', 
+            self._log(timestamp, asset, direction, traded_amount, 'unknown', 
                      balance, self.total_profit, self.consecutive_losses, str(response))
         
         self.trade_count += 1
