@@ -1,92 +1,164 @@
-# IQ Option OTC Trading Bot
+# IQ Option Advanced Trading Bot
 
 ## Overview
-Automated trading bot for IQ Option OTC (Over-The-Counter) markets. Designed for 1-minute timeframe trading with recovery strategy logic.
+Fully automated trading bot for IQ Option OTC markets with advanced pattern recognition, multi-indicator analysis, and intelligent money management.
 
 **⚠️ IMPORTANT WARNINGS:**
-- Currently configured to run in **PRACTICE (demo) mode** by default for safety
-- Uses martingale/recovery strategy which increases risk
+- Runs in **PRACTICE (demo) mode** by default for safety
+- Uses martingale recovery strategy which increases risk exponentially
 - This is an unofficial API for educational purposes only
 - Should NOT be used on real trading accounts without extensive testing
 
 ## Project Status
-- **Current State**: Bot configured and ready to run
-- **Dependencies**: All Python packages installed
-- **IQ API Library**: Using Lu-Yi-Hsun fork (v6.8.9.1) from GitHub for stable_api support
-- **Workflow**: Trading Bot workflow configured to run `python main.py`
+- **Current State**: Bot fully reconfigured and running
+- **Mode**: PRACTICE (Demo account: $24.65)
+- **Assets**: Monitoring 10 OTC pairs automatically
+- **Dependencies**: All packages installed and working
+
+## Advanced Features
+
+### 🎯 Strategy Components
+1. **Candlestick Pattern Recognition**
+   - Hammer (bullish reversal)
+   - Shooting Star (bearish reversal)
+   - Bullish/Bearish Engulfing
+   - Doji (indecision)
+
+2. **Multi-Indicator Analysis**
+   - EMA 10/20 Crossover (trend detection)
+   - RSI 14 (overbought/oversold at 70/30)
+   - MACD Histogram (momentum confirmation)
+
+3. **Structural Analysis**
+   - Support/Resistance Detection (20-period)
+   - Historical Pattern Matching
+   - Learns from past trades
+
+4. **Signal Scoring System**
+   - Combines patterns + indicators + historical matches
+   - Minimum score of 5/10 required for entry
+   - Confidence-based execution
+
+### 💰 Money Management
+- **Martingale System**: Increases stake after loss by configurable multiplier
+- **Take Profit**: Auto-stops when target profit reached
+- **Max Loss Protection**: Stops after N consecutive losses
+- **State Persistence**: Resumes from last state after crash
+
+## Configuration (Environment Variables)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IQ_EMAIL` | - | IQ Option account email (SECRET) |
+| `IQ_PASSWORD` | - | IQ Option account password (SECRET) |
+| `TRADE_MODE` | PRACTICE | PRACTICE or REAL |
+| `BASE_AMOUNT` | 1 | Initial trade amount ($) |
+| `MARTINGALE_MULTIPLIER` | 2.2 | Stake multiplier after loss |
+| `TAKE_PROFIT` | 50 | Target profit in $ |
+| `START_BALANCE` | 24.65 | Starting balance |
+| `MAX_LOSSES` | 5 | Max consecutive losses before stop |
+| `TIMEFRAME` | 1m | Candle timeframe |
+| `ASSETS` | (auto) | Comma-separated OTC assets |
 
 ## Architecture
 
-### Core Components
-1. **main.py** - Main orchestrator that scans OTC assets and triggers trading sequences
-2. **connector.py** - Handles IQ Option API connection and trade execution (digital/binary options)
-3. **strategy.py** - Trading strategy logic (EMA crossover + RSI filter + volume spike)
-4. **manager.py** - Trade management with sequential recovery logic and stake sizing
+### Core Files
+1. **main.py** - Main orchestrator with auto-reconnection and stop conditions
+2. **strategy.py** - Advanced pattern recognition and indicator analysis
+   - `PatternMatcher` class: Historical pattern matching with similarity detection
+   - `CandlePatterns` class: Candlestick pattern recognition
+   - `Indicators` class: EMA, RSI, MACD, Support/Resistance
+   - `AdvancedStrategy` class: Combines all analysis with scoring system
 
-### Trading Logic
-- Monitors OTC assets for trading signals
-- Uses conservative strategy: EMA crossover (5/13) + RSI filter + volume spike detection
-- Sequential trades: 
-  - Win → next trade uses same stake
-  - Loss → stake increases by RECOVERY_MULTIPLIER (default 2.0x) to attempt recovery
-  - Stops after MAX_RECOVERY_STEPS (default 3) or MAX_SEQUENTIAL_TRADES (default 10)
-- Logs all trades to `trades_log.csv`
+3. **manager.py** - Trade execution and money management
+   - Martingale progression system
+   - State persistence (bot_state.json)
+   - Take profit / max loss logic
+   - Accurate profit/loss accounting
 
-### Configuration (Environment Variables)
-Required:
-- `IQ_EMAIL` - IQ Option account email (SECRET - not provided yet)
-- `IQ_PASSWORD` - IQ Option account password (SECRET - not provided yet)
+4. **connector.py** - IQ Option API connection
+   - Handles digital/binary options
+   - Auto-detects OTC assets
+   - Error handling and delays
 
-Optional (with defaults):
-- `MODE=PRACTICE` - PRACTICE or REAL
-- `ASSETS=` - Comma-separated OTC assets (empty = auto-detect)
-- `RISK_PER_TRADE=0.01` - Risk per trade as fraction of balance
-- `TIMEFRAME_SEC=60` - Candle timeframe in seconds
-- `CANDLES=120` - Number of candles to analyze
-- `MAX_TRADES_PER_MIN=3` - Rate limit
-- `MAX_LOSSES_IN_ROW=5` - Stop after N consecutive losses
-- `COOLDOWN_AFTER_LOSS_SEC=60` - Cooldown period after loss
-- `MIN_STAKE=1.0` - Minimum stake amount
-- `RECOVERY_MULTIPLIER=2.0` - Stake multiplier after loss
-- `MAX_RECOVERY_STEPS=3` - Max recovery attempts
-- `MAX_SEQUENTIAL_TRADES=10` - Max trades in one sequence
+### Data Files
+- `trades_log.csv` - Complete trade history with P/L tracking
+- `bot_state.json` - Current bot state (resume after crash)
+
+## Trade Cycle Logic
+
+1. **Entry Signal Detection**
+   - Scans all OTC assets every 5 seconds
+   - Analyzes last 120 candles
+   - Calculates pattern score (bullish/bearish)
+   - Executes if score ≥ 5 and conditions align
+
+2. **Trade Execution**
+   - Places trade with current stake amount
+   - Waits 65s for 1-minute trade to close
+   - Checks result (win/loss/unknown)
+
+3. **Post-Trade Actions**
+   - **WIN**: Add 80% profit, reset stake to BASE_AMOUNT
+   - **LOSS**: Subtract stake, multiply stake by MARTINGALE_MULTIPLIER
+   - Update pattern history with result
+   - Save state to disk
+   - Check stop conditions
+
+4. **Stopping Conditions**
+   - Total profit ≥ TAKE_PROFIT → Stop with success
+   - Consecutive losses ≥ MAX_LOSSES → Stop for safety
+   - Manual stop (Ctrl+C)
 
 ## Recent Changes
-- **2025-10-04**: Project setup and configuration
-  - Extracted bot from uploaded ZIP file
-  - Installed Python dependencies
-  - Fixed iqoptionapi package (switched from PyPI v0.5 to GitHub v6.8.9.1 for stable_api support)
-  - Configured Trading Bot workflow
-  - Added IQ_EMAIL and IQ_PASSWORD credentials (provided by user)
-  - Fixed OTC asset detection (API changed, now using get_all_ACTIVES_OPCODE + "-OTC" suffix)
-  - Bot successfully connects and monitors 10 OTC pairs
-  - Fixed pandas deprecation warning in strategy (fillna method → bfill)
-  - **Status**: Bot is running in PRACTICE mode with $24.65 balance
-  - **Known Issue**: IQ Option API has connection stability issues with frequent candle requests
+- **2025-10-04**: Complete bot reconfiguration
+  - ✅ Implemented advanced candlestick pattern recognition
+  - ✅ Added multi-indicator analysis (EMA, RSI, MACD)
+  - ✅ Built historical pattern matching system
+  - ✅ Created new martingale money management system
+  - ✅ Added take profit and max loss protection
+  - ✅ Implemented state persistence for crash recovery
+  - ✅ Added auto-reconnection logic
+  - ✅ Fixed profit accounting bug (architect-reviewed)
+  - ✅ Bot running in PRACTICE mode
+
+## How to Use
+
+### Check Bot Status
+```bash
+python check_bot_status.py
+```
+
+### View Trade Log
+```bash
+cat trades_log.csv
+```
+
+### Monitor Live Activity
+Check the console output in Replit workflows
+
+### Modify Configuration
+Update environment variables in Replit Secrets panel
 
 ## Known Issues & Limitations
-1. **API Connection Stability**: The IQ Option API can lose connection when making frequent candle requests. The bot includes delays and error handling to mitigate this.
-2. **Reconnection**: If the API drops connection, the bot will show errors but continues attempting to fetch data
-3. **OTC Market Hours**: OTC markets may not always be available. The bot will show connection errors during off-hours.
+1. **API Connection Stability**: IQ Option API can be unstable with frequent requests
+2. **OTC Market Hours**: Markets have specific hours; errors occur when closed
+3. **Conservative Strategy**: High entry requirements mean fewer but higher-quality trades
+4. **Martingale Risk**: Can quickly increase losses - always test in PRACTICE first
 
-## Next Steps & Recommendations
-1. ✅ Bot is running in PRACTICE mode - monitor the console for activity
-2. Check `trades_log.csv` when trades are executed (file created on first trade)
-3. Consider reducing the number of assets monitored (edit ASSETS env var) to reduce API load
-4. Fine-tune strategy parameters in .env if needed
-5. For production use:
-   - Test extensively in PRACTICE mode first
-   - Set MODE=REAL only when confident
-   - Start with small MIN_STAKE values
-   - Monitor closely due to martingale/recovery risk
+## Safety Recommendations
+1. ✅ **Test Extensively**: Run in PRACTICE mode for days/weeks
+2. ✅ **Start Small**: Use minimal BASE_AMOUNT when going live
+3. ✅ **Monitor Closely**: Check logs and performance regularly
+4. ✅ **Set Limits**: Configure reasonable TAKE_PROFIT and MAX_LOSSES
+5. ⚠️ **Never Risk More**: Than you can afford to lose
 
 ## Dependencies
 - Python 3.11
-- iqoptionapi (6.8.9.1 from GitHub Lu-Yi-Hsun fork)
-- pandas, numpy, python-dotenv, ta, pyinstaller
+- iqoptionapi==6.8.9.1 (GitHub Lu-Yi-Hsun fork)
+- pandas, numpy, python-dotenv
 - websocket-client==0.56
 
-## Additional Files
-- `.env.example` - Template for environment variables
-- `README.md` - Original project documentation
-- `.github/workflows/build-windows.yml` - GitHub Actions workflow for building Windows .exe
+---
+
+**Bot Status**: ✅ RUNNING in PRACTICE mode with advanced pattern recognition
