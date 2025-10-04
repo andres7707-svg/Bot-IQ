@@ -1,0 +1,74 @@
+I want you to fully reconfigure the IQ Option trading bot project with the following exact specifications:
+
+1️⃣ GENERAL SETUP
+- The bot will work on all available OTC pairs in the IQ Option platform.
+- It must analyze **1-minute (1M)** candles in real-time.
+- It must retrieve **historical data** for each OTC pair and store it in memory.
+- Using that data, it must detect **repetitive patterns of candles, structures, and indicators**.
+- The analysis must combine:
+  - Candlestick patterns (hammer, engulfing, doji, etc.)
+  - Structural analysis (support/resistance, trend direction)
+  - Indicator filters (EMA crossover, RSI, MACD confirmation)
+- When a pattern matches recent historical behavior and indicators confirm, it should automatically execute a BUY or SELL operation.
+
+2️⃣ STRATEGY LOGIC
+- Timeframe: 1 minute
+- Entry rule:
+  - The bot compares the last 20 candles with historical sections to find repetitive structures.
+  - It validates the direction with EMA(10) and EMA(20) crossovers.
+  - RSI(14) is used to confirm overbought/oversold entries.
+  - MACD histogram crossing above or below zero confirms direction.
+- If all conditions align → execute a trade (BUY or SELL) on that asset in OTC.
+
+3️⃣ RISK AND MONEY MANAGEMENT
+- The bot must include a **martingale recovery system**.
+- Variables (must be read from environment variables in `.env` or Replit Secrets):
+
+| Variable | Description | Example |
+|-----------|--------------|---------|
+| `BASE_AMOUNT` | Initial amount per trade | `1` |
+| `MARTINGALE_MULTIPLIER` | Multiplier after loss | `2.2` |
+| `TAKE_PROFIT` | Target total profit in USD | `50` |
+| `START_BALANCE` | Demo account starting balance | `24.65` |
+| `MAX_LOSSES` | Maximum consecutive losses before stopping | `5` |
+| `TIMEFRAME` | Candle timeframe | `1m` |
+| `TRADE_MODE` | PRACTICE or REAL | `PRACTICE` |
+
+4️⃣ TRADE CYCLE RULES
+- Start with trade amount = `BASE_AMOUNT`.
+- If trade result = WIN ✅ → next trade amount = `BASE_AMOUNT`.
+- If trade result = LOSS ❌ → next trade amount = `previous_amount * MARTINGALE_MULTIPLIER`.
+- After a WIN following losses, reset to `BASE_AMOUNT`.
+- If `MAX_LOSSES` is reached → stop trading automatically.
+- If account profit ≥ `TAKE_PROFIT` → stop trading automatically.
+
+5️⃣ LOGGING AND SAFETY
+- All trades (pair, time, direction, result, balance, amount) must be saved in `trades_log.csv`.
+- Bot must reconnect automatically if IQ Option API drops the connection.
+- If the bot crashes, it must resume from the last logged state (balance, martingale step, etc.).
+- The bot must work in PRACTICE mode by default for safety.
+
+6️⃣ EXECUTION FLOW
+- When started, the bot:
+  1. Connects to IQ Option PRACTICE account.
+  2. Loads historical candles of all OTC assets.
+  3. Continuously scans each asset for repetitive patterns + indicator confirmations.
+  4. When a valid setup is found → execute trade automatically.
+  5. Logs results and manages money with the martingale system.
+  6. Stops when `TAKE_PROFIT` or `MAX_LOSSES` is reached.
+
+7️⃣ OUTPUT
+- Print to console in real-time:
+  - Current pair analyzed
+  - Signals detected
+  - Trades executed and results
+  - Running balance and profit
+  - Martingale step
+
+8️⃣ FINALLY
+- Update `strategy.py` and `manager.py` to include all logic described.
+- Ensure the `.env.example` includes the new parameters.
+- Restart the bot automatically when ready.
+
+After all this, confirm that the system is set up and ready to trade in PRACTICE mode with the above logic.
+
