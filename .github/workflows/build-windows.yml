@@ -20,16 +20,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller iqoptionapi websocket-client requests
 
-      - name: Build exe (force include all)
+      - name: Build exe (with hook)
         run: |
           pyinstaller --onefile main.py ^
+          --additional-hooks-dir=. ^
           --hidden-import=iqoptionapi ^
           --hidden-import=iqoptionapi.stable_api ^
           --hidden-import=websocket ^
           --hidden-import=requests ^
-          --hidden-import=json ^
-          --hidden-import=time ^
-          --hidden-import=datetime ^
           --clean
 
       - name: Upload artifact
