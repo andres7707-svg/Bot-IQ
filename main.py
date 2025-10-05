@@ -201,5 +201,13 @@ def main():
     print(f"   Current Trade Amount: ${stats['current_amount']:.2f}")
     print("=" * 70)
 
+try:
+    main()
+except Exception as e:
+    import traceback
+    print('ERROR:', e)
+    traceback.print_exc()
+    input("Presiona ENTER para salir...")
+
 if __name__ == '__main__':
     main()
