@@ -20,7 +20,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller iqoptionapi websocket-client requests
 
-      - name: Build exe (with hook)
+      - name: Build EXE
         run: |
           pyinstaller --onefile main.py ^
           --additional-hooks-dir=. ^
@@ -33,5 +33,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: iq-bot-exe
+          name: iqbot-exe
           path: dist/main.exe
