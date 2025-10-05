@@ -1,17 +1,14 @@
 name: Build Windows EXE
-
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -22,11 +19,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller iqoptionapi
 
       - name: Build exe
         run: |
-          pyinstaller --onefile main.py
+          pyinstaller --onefile main.py --hidden-import=iqoptionapi --hidden-import=iqoptionapi.stable_api
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
