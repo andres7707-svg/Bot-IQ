@@ -21,20 +21,18 @@ jobs:
           pip install iqoptionapi==5.1
           if exist requirements.txt pip install -r requirements.txt
 
-      - name: Force include iqoptionapi
+      - name: Create PyInstaller spec manually
         run: |
-          echo "import iqoptionapi" > check_import.py
-          python check_import.py
+          echo "from PyInstaller.utils.hooks import collect_submodules, collect_all" > specfile.py
+          echo "datas, binaries, hiddenimports = collect_all('iqoptionapi')" >> specfile.py
+          echo "hiddenimports += collect_submodules('iqoptionapi')" >> specfile.py
+          echo "a = Analysis(['main.py'], pathex=[], binaries=binaries, datas=datas, hiddenimports=hiddenimports)" >> specfile.py
+          echo "pyz = PYZ(a.pure)" >> specfile.py
+          echo "exe = EXE(pyz, a.scripts, a.binaries, a.zipfiles, a.datas, name='main', debug=False, strip=False, upx=True, console=True)" >> specfile.py
+          echo "exe.build()" >> specfile.py
 
-      - name: Build exe
-        run: |
-          pyinstaller --onefile main.py ^
-            --hidden-import=iqoptionapi ^
-            --hidden-import=iqoptionapi.ws.threads ^
-            --hidden-import=iqoptionapi.ws.objects ^
-            --hidden-import=iqoptionapi.stable_api ^
-            --collect-all iqoptionapi ^
-            --collect-submodules iqoptionapi
+      - name: Build EXE
+        run: python specfile.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
