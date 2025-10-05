@@ -2,61 +2,28 @@ name: Build Windows EXE
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v3
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install -r requirements.txt
           pip install pyinstaller
-          pip install iqoptionapi websocket-client requests
-          if exist requirements.txt pip install -r requirements.txt
-
-      - name: Copy iqoptionapi package into repo (so PyInstaller can include it)
-        shell: bash
+          pip install -U git+https://github.com/iqoptionapi/iqoptionapi.git
+          pip install python-dotenv pandas
+      - name: Build exe
         run: |
-          python - <<'PY'
-import iqoptionapi, os, shutil
-src = os.path.dirname(iqoptionapi.__file__)
-dst = os.path.join(os.getcwd(), 'iqoptionapi_pkg')
-# remove if exists
-import shutil
-if os.path.exists(dst):
-    shutil.rmtree(dst)
-shutil.copytree(src, dst)
-print('Copied', src, '->', dst)
-PY
-
-      - name: Build EXE with PyInstaller (include copied package)
-        shell: bash
-        run: |
-          # include the copied package as data and force hidden imports
-          pyinstaller --onefile main.py \
-            --add-data "iqoptionapi_pkg:iqoptionapi" \
-            --additional-hooks-dir=. \
-            --hidden-import=iqoptionapi \
-            --hidden-import=iqoptionapi.stable_api \
-            --hidden-import=iqoptionapi.ws.threads \
-            --hidden-import=iqoptionapi.ws.objects \
-            --clean
-
-      - name: List dist folder
-        run: dir dist || true
-
+          pyinstaller --onefile --hidden-import=iqoptionapi.stable_api main.py
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: iq-bot-exe
-          path: dist/*.exe
+          path: dist/main.exe
