@@ -1,0 +1,32 @@
+name: Build EXE for Bot IQ
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v3
+
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Crear archivo EXE
+        run: |
+          pyinstaller --onefile main.py
+
+      - name: Subir resultado (.exe)
+        uses: actions/upload-artifact@v3
+        with:
+          name: BotIQ-EXE
+          path: dist/main.exe
