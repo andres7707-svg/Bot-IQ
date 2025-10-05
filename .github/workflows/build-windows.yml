@@ -6,7 +6,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -18,25 +17,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller iqoptionapi websocket-client requests
+          pip install pyinstaller
+          pip install iqoptionapi
+          if exist requirements.txt pip install -r requirements.txt
 
-      - name: Include iqoptionapi manually
+      - name: Build exe
         run: |
-          mkdir iqoptionapi_copy
-          xcopy /E /I "%pythonLocation%\Lib\site-packages\iqoptionapi" "iqoptionapi_copy\iqoptionapi"
-
-      - name: Build EXE (force include iqoptionapi)
-        run: |
-          pyinstaller --onefile main.py ^
-          --add-data "iqoptionapi_copy/iqoptionapi;iqoptionapi" ^
-          --hidden-import iqoptionapi ^
-          --hidden-import iqoptionapi.stable_api ^
-          --hidden-import websocket ^
-          --hidden-import requests ^
-          --clean
+          pyinstaller --onefile main.py --hidden-import=iqoptionapi --hidden-import=iqoptionapi.ws.threads --hidden-import=iqoptionapi.ws.objects
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: iqbot-exe
+          name: iq-bot-exe
           path: dist/main.exe
