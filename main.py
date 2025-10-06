@@ -1,14 +1,18 @@
 import os
 import sys
+
+# Asegura que el directorio donde está main.py esté en el PYTHONPATH cuando se ejecute el .exe
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Imports habituales
 import time
 import signal
 from dotenv import load_dotenv
 
-# Asegura que el directorio actual esté en el path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
+# Importa el módulo local explicitamente para que PyInstaller lo detecte
 import connector
 from connector import IQConnector
+
 from strategy import AdvancedStrategy
 from manager import TradeManager
 import pandas as pd
