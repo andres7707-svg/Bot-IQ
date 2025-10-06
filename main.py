@@ -1,7 +1,12 @@
 import os
+import sys
 import time
 import signal
 from dotenv import load_dotenv
+
+# Asegura que el directorio actual esté en el path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import connector
 from connector import IQConnector
 from strategy import AdvancedStrategy
