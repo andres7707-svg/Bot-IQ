@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v3
         with:
           python-version: '3.10'
 
@@ -24,13 +24,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller iqoptionapi python-dotenv
 
-      - name: Build executable including all needed files
+      - name: Ensure connector is imported correctly
         run: |
-          pyinstaller --onefile ^
-            --add-data "connector.py;." ^
-            --add-data ".env;." ^
-            --hidden-import dotenv ^
-            main.py
+          echo "Checking files..."
+          dir
+          echo "----"
+          type main.py
+
+      - name: Build executable with proper connector path
+        run: |
+          pyinstaller --onefile main.py `
+            --add-data "connector.py;." `
+            --hidden-import connector `
+            --hidden-import dotenv
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
