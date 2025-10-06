@@ -28,25 +28,79 @@ class IQConnector:
                 pass
         return True
 
-    def get_all_assets(self):
+    def def get_all_assets(self):
+    """
+    Return a list of OTC assets that are actually available/open.
+    Strategy:
+     - Prefer using self.Iq.get_all_open_time() (most reliable).
+     - If that fails, fallback to older calls (get_all_ACTIVES_OPCODE).
+     - As a last resort return sensible defaults.
+    """
+    try:
+        otc_list = []
+
+        # 1) Try get_all_open_time() first (preferred)
+        all_open = None
         try:
-            actives = self.Iq.get_all_ACTIVES_OPCODE()
-            if not actives:
-                return ['EURUSD-OTC', 'GBPUSD-OTC', 'USDJPY-OTC', 'AUDUSD-OTC', 'EURJPY-OTC']
-            
-            otc_list = []
-            for pair_name in actives.keys():
-                otc_name = f"{pair_name}-OTC"
-                otc_list.append(otc_name)
-                self.asset_type_cache[otc_name] = 'digital'
-            
+            if hasattr(self.Iq, 'get_all_open_time'):
+                all_open = self.Iq.get_all_open_time()
+        except Exception:
+            all_open = None
+
+        if isinstance(all_open, dict):
+            # The structure can vary by wrapper version, be flexible
+            for key, info in all_open.items():
+                # Build candidate normalized names
+                candidates = [key, f"{key}-OTC", key.upper(), f"{key.upper()}-OTC"]
+                # Inspect info: it may be a dict of timeframes -> { 'open': True/False } etc.
+                found_open = False
+                # check whether any nested entry declares open=True
+                if isinstance(info, dict):
+                    # If the dict itself has an 'open' key
+                    if info.get('open') is True:
+                        found_open = True
+                    else:
+                        # otherwise check nested dictionaries
+                        for subv in info.values():
+                            if isinstance(subv, dict) and subv.get('open') is True:
+                                found_open = True
+                                break
+                # If we found 'open', normalize name to <PAIR>-OTC
+                if found_open:
+                    # prefer explicit -OTC form
+                    name = f"{key}-OTC"
+                    if name not in otc_list:
+                        otc_list.append(name)
+
+            # If we found items via get_all_open_time, return them (limit to avoid overload)
             if otc_list:
-                return otc_list[:10]
-            else:
-                return ['EURUSD-OTC', 'GBPUSD-OTC', 'USDJPY-OTC', 'AUDUSD-OTC', 'EURJPY-OTC']
-        except Exception as e:
-            print(f'Error getting assets: {e}')
-            return ['EURUSD-OTC', 'GBPUSD-OTC', 'USDJPY-OTC', 'AUDUSD-OTC', 'EURJPY-OTC']
+                return otc_list[:30]
+
+        # 2) Fallback: try older API call get_all_ACTIVES_OPCODE
+        try:
+            if hasattr(self.Iq, 'get_all_ACTIVES_OPCODE'):
+                actives = self.Iq.get_all_ACTIVES_OPCODE()
+                if isinstance(actives, dict):
+                    for pair in actives.keys():
+                        name = f"{pair}-OTC"
+                        if name not in otc_list:
+                            otc_list.append(name)
+                    if otc_list:
+                        return otc_list[:30]
+        except Exception:
+            pass
+
+        # 3) Final fallback: sensible defaults
+        defaults = [
+            'EURUSD-OTC','GBPUSD-OTC','USDJPY-OTC','EURJPY-OTC',
+            'GBPJPY-OTC','AUDCAD-OTC','NZDUSD-OTC'
+        ]
+        return defaults
+
+    except Exception as e:
+        print("Error in get_all_assets:", e)
+        # return safe defaults if anything goes wrong
+        return ['EURUSD-OTC','GBPUSD-OTC','USDJPY-OTC','EURJPY-OTC']
 
     def get_candles(self, asset, timeframe_seconds=60, count=100):
         to = int(time.time())
