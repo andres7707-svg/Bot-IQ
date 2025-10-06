@@ -2,6 +2,7 @@ import os
 import time
 import signal
 from dotenv import load_dotenv
+import connector
 from connector import IQConnector
 from strategy import AdvancedStrategy
 from manager import TradeManager
