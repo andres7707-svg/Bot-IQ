@@ -144,37 +144,44 @@ class IQConnector:
         return None
 
     def buy_asset(self, asset, amount, direction, expiration_minutes=1):
-        atype = self.detect_asset_type(asset)
-        # try digital first if known
-        if atype == 'digital':
-            try:
-                return self.Iq.buy_digital_spot(asset, amount, direction, expiration_minutes)
-            except Exception as e:
-                print('Error buy_digital_spot:', e)
-        if atype == 'binary':
-            try:
-                exp_sec = int(expiration_minutes * 60)
-                if hasattr(self.Iq, 'buy'):
-                    return self.Iq.buy(asset, amount, direction, exp_sec)
-                elif hasattr(self.Iq, 'buy_option'):
-                    return self.Iq.buy_option(asset, amount, direction, exp_sec)
-            except Exception as e:
-                print('Error buy binary classic:', e)
-        # fallback try digital then binary
-        try:
-            return self.Iq.buy_digital_spot(asset, amount, direction, expiration_minutes)
-        except Exception as e1:
-            try:
-                exp_sec = int(expiration_minutes * 60)
-                if hasattr(self.Iq, 'buy'):
-                    return self.Iq.buy(asset, amount, direction, exp_sec)
-                elif hasattr(self.Iq, 'buy_option'):
-                    return self.Iq.buy_option(asset, amount, direction, exp_sec)
-            except Exception as e2:
-                print('Error fallback buy attempts:')
-                traceback.print_exc()
-                return None
+    """
+    Normaliza direction y realiza la compra.
+    direction puede venir como 'CALL','call','Put','PUT' etc.
+    Retorna el objeto respuesta que provea la API (o None).
+    """
+    # Normalize direction to 'call' or 'put'
+    d = str(direction).strip().lower()
+    if d in ('put', 'sell', 'down', 'p'):
+        dir_norm = 'put'
+    else:
+        # default to 'call' for safety
+        dir_norm = 'call'
 
+    # try digital spot first (library-dependent)
+    try:
+        # many wrappers accept ('asset', amount, 'call'/'put', expiration_minutes)
+        resp = None
+        try:
+            resp = self.Iq.buy_digital_spot(asset, amount, dir_norm, expiration_minutes)
+            return resp
+        except Exception:
+            # fallback to classic buy (some wrappers use seconds for expiry)
+            exp_sec = int(expiration_minutes * 60)
+            if hasattr(self.Iq, 'buy'):
+                try:
+                    return self.Iq.buy(asset, amount, dir_norm, exp_sec)
+                except Exception:
+                    pass
+            if hasattr(self.Iq, 'buy_option'):
+                try:
+                    return self.Iq.buy_option(asset, amount, dir_norm, exp_sec)
+                except Exception:
+                    pass
+        return resp
+    except Exception as e:
+        print('Buy failed (connector.buy_asset):', e)
+        return None
+        
     def check_trade_result(self, response):
         """Attempt to determine if a trade (response) resulted in profit or loss.
         Many wrappers return a dict with 'id' or 'position_id' or a boolean.
