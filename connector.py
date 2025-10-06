@@ -1,5 +1,14 @@
 # connector.py (supports digital & binary attempts + check result)
 import time, traceback
+import os, sys
+
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Si necesitas leer archivos locales en connector.py, úsalos con BASE_DIR:
+# example_path = os.path.join(BASE_DIR, 'algún_archivo.json')
 
 from iqoptionapi.stable_api import IQ_Option
 
