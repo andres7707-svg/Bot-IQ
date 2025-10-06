@@ -155,3 +155,97 @@ class TradeManager:
             'profit_target': self.take_profit,
             'max_losses': self.max_losses
         }
+
+    def run_sequential(self, asset, direction, balance, execute_fn):
+        """
+        Ejecuta una secuencia completa Martingale de forma independiente.
+        Puede ser llamada desde un hilo (thread) para no bloquear el bucle principal.
+        """
+        print(f"\n⚙️ Starting Martingale sequence for {asset} ({direction.upper()})")
+
+        self._load_state()
+        stake = float(self.current_amount)
+        seq = 0
+
+        # Si no se pasa balance, intenta obtenerlo desde IQ Option
+        try:
+            start_balance = float(balance)
+        except Exception:
+            try:
+                start_balance = float(self.conn.Iq.get_balance())
+            except Exception:
+                start_balance = 0.0
+
+        while True:
+            seq += 1
+            stop, reason = self.should_stop_trading()
+            if stop:
+                print(f"🛑 {asset} - {reason}")
+                break
+
+            print(f"\n[{asset}] ▶️ Step {seq}: Placing {direction.upper()} ${stake:.2f}")
+            
+            before_bal = 0.0
+            try:
+                before_bal = float(self.conn.Iq.get_balance())
+            except Exception:
+                pass
+
+            # Ejecuta la operación usando la función que recibe como parámetro
+            res = execute_fn(asset, stake, direction)
+            if not res:
+                print(f"[{asset}] ❌ Failed to place order, stopping sequence.")
+                break
+
+            print(f"[{asset}] ⏳ Waiting for trade result (65s)...")
+            time.sleep(65)
+
+            # Verifica el resultado
+            result_status = self.conn.check_trade_result(res)
+            profit = 0.0
+            outcome_text = "unknown"
+
+            if result_status == 'win':
+                payout = stake * 0.8
+                profit = payout
+                self.total_profit += payout
+                self.consecutive_losses = 0
+                self.current_amount = self.base_amount
+                outcome_text = "✅ WIN"
+            elif result_status == 'loss':
+                profit = -stake
+                self.total_profit -= stake
+                self.consecutive_losses += 1
+                self.current_amount = round(stake * self.martingale_multiplier, 2)
+                outcome_text = "❌ LOSS"
+            else:
+                profit = -stake
+                self.total_profit -= stake
+                self.consecutive_losses += 1
+                self.current_amount = round(stake * self.martingale_multiplier, 2)
+                outcome_text = "⚠️ UNKNOWN"
+
+            after_bal = 0.0
+            try:
+                after_bal = float(self.conn.Iq.get_balance())
+            except Exception:
+                pass
+
+            timestamp = datetime.utcnow().isoformat()
+            self._log(timestamp, asset, direction, stake, result_status, after_bal, profit, self.consecutive_losses, f"{outcome_text} seq#{seq}")
+            self._save_state()
+
+            print(f"[{asset}] {outcome_text} | Profit: {profit:.2f} | Total: {self.total_profit:.2f} | Next stake: {self.current_amount:.2f}")
+
+            if result_status == 'win':
+                print(f"[{asset}] ✅ Sequence ended after win.")
+                break
+
+            if self.consecutive_losses >= self.max_losses:
+                print(f"[{asset}] 🛑 Max losses reached ({self.max_losses}).")
+                break
+
+            stake = self.current_amount
+
+        print(f"🏁 Finished Martingale sequence for {asset}")
+        return self.get_stats()
