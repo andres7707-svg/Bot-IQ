@@ -6,6 +6,7 @@ from connector import IQConnector
 from strategy import AdvancedStrategy
 from manager import TradeManager
 import pandas as pd
+import threading
 
 load_dotenv()
 
@@ -113,7 +114,17 @@ def main():
         start_balance=START_BALANCE,
         max_losses=MAX_LOSSES
     )
-    
+
+    # --- función auxiliar para ejecutar trades en un hilo separado ---
+    def execute_signal(asset, direction, balance, analysis):
+        try:
+            result = manager.execute_trade(asset, direction, balance, analysis)
+            if result:
+                pattern_closes = df['close'].tail(20).tolist()
+                strategy.update_pattern_result(asset, pattern_closes, direction)
+        except Exception as e:
+            print(f"⚠️ Error ejecutando operación en {asset}: {e}")
+
     print('\n🚀 Starting main trading loop...\n')
     print('🔍 The bot will now scan for patterns and execute trades automatically')
     print('   Press Ctrl+C to stop\n')
@@ -162,18 +173,23 @@ def main():
                 
                 if signal in ('call', 'put'):
                     print(f'\n🎯 SIGNAL DETECTED: {signal.upper()} on {asset}')
-                    
+
                     try:
                         balance = conn.Iq.get_balance()
                     except:
                         balance = START_BALANCE + manager.total_profit
-                    
-                    result = manager.execute_trade(asset, signal, balance, analysis)
-                    
-                    if result:
-                        pattern_closes = df['close'].tail(20).tolist()
-                        strategy.update_pattern_result(asset, pattern_closes, signal)
-                    
+
+                    # --- lanzar operación en un hilo separado ---
+                    t = threading.Thread(
+                        target=execute_signal,
+                        args=(asset, signal, balance, analysis),
+                        daemon=True
+                    )
+                    t.start()
+
+                    # seguir escaneando otros pares sin esperar a que termine
+                    time.sleep(1)
+
                     should_stop, reason = manager.should_stop_trading()
                     if should_stop:
                         print(f'\n🛑 STOPPING: {reason}')
