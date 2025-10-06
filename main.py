@@ -1,16 +1,33 @@
 import os
 import sys
-
-# Asegura que el directorio donde está main.py esté en el PYTHONPATH cuando se ejecute el .exe
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# Imports habituales
 import time
 import signal
-from dotenv import load_dotenv
 
-# Importa el módulo local explicitamente para que PyInstaller lo detecte
-import connector
+# Asegura que el directorio donde está el script/exe esté en PYTHONPATH
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# base_dir apunta a la carpeta del exe cuando está empaquetado con PyInstaller
+BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+
+# cargamos dotenv desde BASE_DIR (si existe .env empaquetado)
+from dotenv import load_dotenv
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
+# Intentamos importar connector de la forma habitual; si falla, lo cargamos manualmente
+try:
+    import connector
+except ModuleNotFoundError:
+    import importlib.util
+    connector_path = os.path.join(BASE_DIR, 'connector.py')
+    if os.path.exists(connector_path):
+        spec = importlib.util.spec_from_file_location("connector", connector_path)
+        connector = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(connector)
+    else:
+        # re-raise para que el error sea visible si realmente falta el archivo
+        raise
+
+# y ahora importamos la clase concreta
 from connector import IQConnector
 
 from strategy import AdvancedStrategy
