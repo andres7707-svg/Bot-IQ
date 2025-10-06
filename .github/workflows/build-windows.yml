@@ -27,7 +27,7 @@ jobs:
       - name: Build executable with connector.py included
         run: |
           pyinstaller --onefile --add-data "connector.py;." main.py
-
+          
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
