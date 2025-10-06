@@ -28,7 +28,7 @@ class IQConnector:
                 pass
         return True
 
-    def def get_all_assets(self):
+    def get_all_assets(self):
     """
     Return a list of OTC assets that are actually available/open.
     Strategy:
