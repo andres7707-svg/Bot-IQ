@@ -2,16 +2,16 @@ name: Build Windows Executable
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -21,15 +21,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install pyinstaller
+          python -m pip install --upgrade pip
+          pip install pyinstaller iqoptionapi
 
-      - name: Build EXE
+      - name: Build executable with connector.py included
         run: |
-          pyinstaller --onefile main.py --name main
+          pyinstaller --onefile --add-data "connector.py;." main.py
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: iqoption-bot
+          name: IQBot-Windows
           path: dist/main.exe
