@@ -22,8 +22,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller iqoptionapi
-
+          pip install pyinstaller iqoptionapi python-dotenv
+          
       - name: Build executable with connector.py included
         run: |
           pyinstaller --onefile --add-data "connector.py;." main.py
