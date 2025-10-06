@@ -12,31 +12,26 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller iqoptionapi python-dotenv
+          pip install pyinstaller iqoptionapi python-dotenv pandas
 
-      - name: Ensure connector is imported correctly
+      - name: Build executable with connector.py included
         run: |
-          echo "Checking files..."
-          dir
-          echo "----"
-          type main.py
-
-      - name: Build executable with proper connector path
-        run: |
-          pyinstaller --onefile main.py `
-            --add-data "connector.py;." `
-            --hidden-import connector `
-            --hidden-import dotenv
+          pyinstaller --onefile ^
+            --collect-all dotenv ^
+            --add-data "connector.py;." ^
+            --add-data "strategy.py;." ^
+            --add-data "manager.py;." ^
+            main.py
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
