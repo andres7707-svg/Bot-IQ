@@ -27,7 +27,8 @@ jobs:
           pip install --upgrade pyinstaller
 
       - name: Create .env from secrets (optional)
-        if: ${{ secrets.IQ_EMAIL && secrets.IQ_PASSWORD }}
+        if: secrets.IQ_EMAIL && secrets.IQ_PASSWORD
+
         run: |
           echo "IQ_EMAIL=${{ secrets.IQ_EMAIL }}" > .env
           echo "IQ_PASSWORD=${{ secrets.IQ_PASSWORD }}" >> .env
