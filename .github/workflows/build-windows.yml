@@ -23,19 +23,36 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if (Test-Path requirements.txt) { pip install -r requirements.txt } else { pip install pyinstaller iqoptionapi python-dotenv pandas }
+          if (Test-Path requirements.txt) { pip install -r requirements.txt } else { pip install pandas numpy python-dotenv pyinstaller }
           pip install --upgrade pyinstaller
+
+      - name: Create .env from secrets (optional)
+        if: ${{ secrets.IQ_EMAIL && secrets.IQ_PASSWORD }}
+        run: |
+          echo "IQ_EMAIL=${{ secrets.IQ_EMAIL }}" > .env
+          echo "IQ_PASSWORD=${{ secrets.IQ_PASSWORD }}" >> .env
+          echo "TRADE_MODE=PRACTICE" >> .env
 
       - name: Show repository (debug)
         run: |
           echo "ROOT CONTENTS:"
           dir
           echo "---- main.py head ----"
-          Get-Content main.py -TotalCount 60
+          Get-Content main.py -TotalCount 40
 
-      - name: Build executable (PyInstaller)
+      - name: Build executable with PyInstaller
         run: |
-          pyinstaller --onefile --hidden-import connector --hidden-import dotenv --collect-all dotenv --add-data "connector.py;." --add-data "strategy.py;." --add-data "manager.py;." --add-data ".env;." main.py
+          pyinstaller --onefile ^
+            --hidden-import=connector ^
+            --hidden-import=strategy ^
+            --hidden-import=manager ^
+            --hidden-import=dotenv ^
+            --collect-all dotenv ^
+            --add-data "connector.py;." ^
+            --add-data "strategy.py;." ^
+            --add-data "manager.py;." ^
+            --add-data ".env;." ^
+            main.py
 
       - name: Show dist folder (debug)
         run: |
