@@ -3,13 +3,17 @@ import sys
 import time
 import signal
 
-# Asegura que el directorio donde está el script/exe esté en PYTHONPATH
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Asegura búsqueda del directorio del exe/script
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# base_dir apunta a la carpeta del exe cuando está empaquetado con PyInstaller
-BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+# añade BASE_DIR a sys.path para que imports locales funcionen dentro del .exe
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
-# cargamos dotenv desde BASE_DIR (si existe .env empaquetado)
+# carga dotenv desde BASE_DIR si existe
 from dotenv import load_dotenv
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
@@ -29,7 +33,6 @@ except ModuleNotFoundError:
 
 # y ahora importamos la clase concreta
 from connector import IQConnector
-
 from strategy import AdvancedStrategy
 from manager import TradeManager
 import pandas as pd
