@@ -1,9 +1,5 @@
 pandas
 numpy
 python-dotenv
-pyinstaller
-ta
-numpy
-pandas
-pyinstaller
-python-dotenv
+iqoptionapi @ git+https://github.com/Lu-Yi-Hsun/iqoptionapi.git
+pyinstaller>=5.8.0
